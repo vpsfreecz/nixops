@@ -17,6 +17,15 @@ let
       machineOpts.${machineName}.spin or "NixOS"
     else
       "NixOS";
+
+  machineOpt = machineName: opt:
+    machineOpts.${machineName}.${opt};
+
+  nixPathOf = machineName:
+    if lib.hasAttr machineName machineOpts then
+      machineOpts.${machineName}.nixPath or []
+    else
+      [];
 in
 rec {
 
@@ -43,8 +52,8 @@ rec {
   nodes =
     let
       spins = {
-        NixOS = machineName: modules: (
-          import <nixpkgs/nixos/lib/eval-config.nix> {
+        NixOS = machineName: modules: importFn: (
+          importFn <nixpkgs/nixos/lib/eval-config.nix> {
             configuration = null;
             extraModules =
               modules ++
@@ -63,8 +72,8 @@ rec {
             extraArgs = { inherit nodes resources uuid deploymentName; name = machineName; };
           });
 
-        vpsAdminOS = machineName: modules: (
-          import <vpsadminos/os/default.nix> {
+        vpsAdminOS = machineName: modules: importFn: (
+          importFn "${machineOpt machineName "path"}/os/default.nix" {
             configuration = null;
             extraModules =
               modules ++
@@ -91,9 +100,25 @@ rec {
           concatMap (n: optional (hasAttr machineName n)
             { imports = [(getAttr machineName n)]; inherit (n) _file; })
           networks;
+
+        nixPath = nixPathOf machineName;
+
+        importFn = if nixPath == [] then
+            import
+          else
+            let
+              overrides = {
+                __nixPath = nixPath ++ __nixPath;
+                import = fn: scopedImport overrides fn;
+                scopedImport = attrs: fn: scopedImport (overrides // attrs) fn;
+                builtins = builtins // overrides;
+              };
+            in
+              scopedImport overrides;
+
       in
       { name = machineName;
-        value = spins.${spinOf machineName} machineName modules;
+        value = spins.${spinOf machineName} machineName modules importFn;
       }
     ) (attrNames (removeAttrs network [ "network" "defaults" "resources" "require" "_file" ])));
 
