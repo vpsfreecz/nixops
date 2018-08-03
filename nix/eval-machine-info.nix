@@ -4,13 +4,20 @@
 , uuid
 , deploymentName
 , args
+, machineOpts
 }:
 
 with import <nixpkgs/nixos/lib/testing.nix> { inherit system; };
 with pkgs;
 with lib;
 
-
+let
+  spinOf = machineName:
+    if lib.hasAttr machineName machineOpts then
+      machineOpts.${machineName}.spin or "NixOS"
+    else
+      "NixOS";
+in
 rec {
 
   networks =
@@ -34,6 +41,47 @@ rec {
 
   # Compute the definitions of the machines.
   nodes =
+    let
+      spins = {
+        NixOS = machineName: modules: (
+          import <nixpkgs/nixos/lib/eval-config.nix> {
+            configuration = null;
+            extraModules =
+              modules ++
+              defaults ++
+              [ deploymentInfoModule ] ++
+              [ { key = "nixops-stuff";
+                  # Make NixOps's deployment.* options available.
+                  imports = [ ./options.nix ./resource.nix ];
+                  # Provide a default hostname and deployment target equal
+                  # to the attribute name of the machine in the model.
+                  networking.hostName = mkOverride 900 machineName;
+                  deployment.targetHost = mkOverride 900 machineName;
+                  environment.checkConfigurationOptions = mkOverride 900 checkConfigurationOptions;
+                }
+              ];
+            extraArgs = { inherit nodes resources uuid deploymentName; name = machineName; };
+          });
+
+        vpsAdminOS = machineName: modules: (
+          import <vpsadminos/os/default.nix> {
+            configuration = null;
+            extraModules =
+              modules ++
+              defaults ++
+              [ deploymentInfoModule ] ++
+              [ { key = "nixops-stuff";
+                  # Make NixOps's deployment.* options available.
+                  imports = [ ./options.nix ./resource.nix ];
+                  # Provide a default hostname and deployment target equal
+                  # to the attribute name of the machine in the model.
+                  networking.hostName = mkOverride 900 machineName;
+                  deployment.targetHost = mkOverride 900 machineName;
+                }
+              ];
+          });
+      };
+    in
     listToAttrs (map (machineName:
       let
         # Get the configuration of this machine from each network
@@ -45,23 +93,7 @@ rec {
           networks;
       in
       { name = machineName;
-        value = import <nixpkgs/nixos/lib/eval-config.nix> {
-          modules =
-            modules ++
-            defaults ++
-            [ deploymentInfoModule ] ++
-            [ { key = "nixops-stuff";
-                # Make NixOps's deployment.* options available.
-                imports = [ ./options.nix ./resource.nix ];
-                # Provide a default hostname and deployment target equal
-                # to the attribute name of the machine in the model.
-                networking.hostName = mkOverride 900 machineName;
-                deployment.targetHost = mkOverride 900 machineName;
-                environment.checkConfigurationOptions = mkOverride 900 checkConfigurationOptions;
-              }
-            ];
-          extraArgs = { inherit nodes resources uuid deploymentName; name = machineName; };
-        };
+        value = spins.${spinOf machineName} machineName modules;
       }
     ) (attrNames (removeAttrs network [ "network" "defaults" "resources" "require" "_file" ])));
 
@@ -298,12 +330,16 @@ rec {
     let
       network' = network;
       resources' = resources;
+      spins = {
+        NixOS = v: v.config.system.nixos.release or v.config.system.nixosRelease or (removeSuffix v.config.system.nixosVersionSuffix v.config.system.nixosVersion);
+        vpsAdminOS = v: v.config.system.osRelease;
+      };
     in rec {
 
     machines =
       flip mapAttrs nodes (n: v': let v = scrubOptionValue v'; in
         { inherit (v.config.deployment) targetEnv targetPort targetHost encryptedLinksTo storeKeysOnMachine alwaysActivate owners keys hasFastConnection;
-          nixosRelease = v.config.system.nixos.release or v.config.system.nixosRelease or (removeSuffix v.config.system.nixosVersionSuffix v.config.system.nixosVersion);
+          nixosRelease = spins.${spinOf n} v;
           azure = optionalAttrs (v.config.deployment.targetEnv == "azure")  v.config.deployment.azure;
           ec2 = optionalAttrs (v.config.deployment.targetEnv == "ec2") v.config.deployment.ec2;
           digitalOcean = optionalAttrs (v.config.deployment.targetEnv == "digitalOcean") v.config.deployment.digitalOcean;

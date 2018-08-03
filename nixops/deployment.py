@@ -52,6 +52,7 @@ class Deployment(object):
     datadog_notify = nixops.util.attr_property("datadogNotify", False, bool)
     datadog_event_info = nixops.util.attr_property("datadogEventInfo", "")
     datadog_tags = nixops.util.attr_property("datadogTags", [], 'json')
+    machine_opts = nixops.util.attr_property("machines", {}, 'json')
 
     # internal variable to mark if network attribute of network has been evaluated (separately)
     network_attr_eval = False
@@ -264,6 +265,7 @@ class Deployment(object):
         flags.extend(
             ["--arg", "networkExprs", py2nix(exprs_, inline=True),
              "--arg", "args", py2nix(args, inline=True),
+             "--arg", "machineOpts", py2nix(self.machine_opts, inline=True),
              "--argstr", "uuid", self.uuid,
              "--argstr", "deploymentName", self.name if self.name else "",
              "<nixops/eval-machine-info.nix>"])
@@ -349,6 +351,7 @@ class Deployment(object):
             self.datadog_downtime = config.get("datadogDowntime", False)
             self.datadog_downtime_seconds = config.get("datadogDowntimeSeconds", 3600)
             self.network_attr_eval = True
+            self.machine_opts = config.get('machines')
 
     def evaluate(self):
         """Evaluate the Nix expressions belonging to this deployment into a deployment specification."""
