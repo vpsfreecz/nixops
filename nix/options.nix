@@ -46,6 +46,9 @@ in
         <literal>"virtualbox"</literal> causes a VirtualBox VM to be
         created on your machine.  (This requires VirtualBox to be
         configured on your system.)
+        <literal>"dumb"</literal> is a dumb SSH backend similar to
+        <literal>"none"</literal> backend but relying on system SSH config
+        (without using generated key pair stored in state).
       '';
     };
 
