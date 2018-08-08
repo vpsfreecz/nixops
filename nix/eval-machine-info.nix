@@ -13,8 +13,10 @@ with lib;
 
 let
   spinOf = machineName:
-    if lib.hasAttr machineName machineOpts then
-      machineOpts.${machineName}.spin or "NixOS"
+    if machineOpts != null
+      && (lib.hasAttr "${machineName}" machineOpts)
+      && (lib.hasAttr "spin" machineOpts.${machineName}) then
+        machineOpts.${machineName}.spin
     else
       "NixOS";
 
@@ -22,7 +24,7 @@ let
     machineOpts.${machineName}.${opt};
 
   nixPathOf = machineName:
-    if lib.hasAttr machineName machineOpts then
+    if machineOpts != null && lib.hasAttr machineName machineOpts then
       machineOpts.${machineName}.nixPath or []
     else
       [];
@@ -54,8 +56,7 @@ rec {
       spins = {
         NixOS = machineName: modules: importFn: (
           importFn <nixpkgs/nixos/lib/eval-config.nix> {
-            configuration = null;
-            extraModules =
+            modules =
               modules ++
               defaults ++
               [ deploymentInfoModule ] ++
