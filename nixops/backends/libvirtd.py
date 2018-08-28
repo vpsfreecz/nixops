@@ -254,13 +254,18 @@ class LibvirtdState(MachineState):
             self.log("Failed to get domain interfaces")
             return
 
-        first_iface = next(v for k, v in ifaces.iteritems()
-                           if v.get('hwaddr', None) == first_iface_mac)
+        for name, ifc in ifaces.items():
+            if name == "lo" or ('addrs' not in ifc) or (ifc['addrs'] == None):
+                continue
 
-        addrs = first_iface.get('addrs', [])
+            for ipaddr in ifc['addrs']:
+                if ipaddr['type'] == libvirt.VIR_IP_ADDR_TYPE_IPV4 and ipaddr['addr'].startswith("169.254"):
+                    continue
 
-        return addrs[0]['addr']
+                if ipaddr['type'] == libvirt.VIR_IP_ADDR_TYPE_IPV6 and ipaddr['addr'].startswith("fe80::"):
+                    continue
 
+                return ipaddr['addr']
 
     def _wait_for_ip(self, prev_time):
         while True:
