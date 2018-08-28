@@ -4,6 +4,12 @@ let
   config = (import <nixpkgs/nixos/lib/eval-config.nix> {
     inherit system;
     modules = [ {
+      imports = [
+        <nixpkgs/nixos/modules/profiles/qemu-guest.nix>
+      ];
+
+      services.qemuGuest.enable = true;
+
       fileSystems."/".device = "/dev/disk/by-label/nixos";
 
       boot.loader.grub.version = 2;

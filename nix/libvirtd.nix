@@ -159,20 +159,7 @@ in
 
     deployment.hasFastConnection = true;
 
-    services.udev.extraRules = ''
-      SUBSYSTEM=="virtio-ports", ATTR{name}=="org.qemu.guest_agent.0", TAG+="systemd" ENV{SYSTEMD_WANTS}="qemu-guest-agent.service"
-    '';
-
-    systemd.services.qemu-guest-agent = {
-      description = "QEMU Guest Agent";
-      bindsTo = [ "dev-virtio\\x2dports-org.qemu.guest_agent.0.device" ];
-      after = [ "dev-virtio\\x2dports-org.qemu.guest_agent.0.device" ];
-      serviceConfig = {
-        ExecStart = "-${pkgs.kvm}/bin/qemu-ga";
-        Restart = "always";
-        RestartSec = 0;
-      };
-    };
+    services.qemuGuest.enable = true;
 };
 
 }
