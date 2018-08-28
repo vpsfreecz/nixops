@@ -15,9 +15,10 @@ from nixops.backends import MachineDefinition, MachineState
 import nixops.known_hosts
 import nixops.util
 
-# to prevent libvirt errors from appearing on screen, see
-# https://www.redhat.com/archives/libvirt-users/2017-August/msg00011.html
+def libvirt_callback(userdata, err):
+    pass
 
+libvirt.registerErrorHandler(f=libvirt_callback, ctx=None)
 
 class LibvirtdNetwork:
 
