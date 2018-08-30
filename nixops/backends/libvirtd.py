@@ -9,7 +9,6 @@ import string
 import subprocess
 import time
 import libvirt
-from xml.etree import ElementTree
 
 from nixops.backends import MachineDefinition, MachineState
 import nixops.known_hosts
@@ -240,10 +239,6 @@ class LibvirtdState(MachineState):
         """
         return an ip v4
         """
-
-        dom_xml_str = self.dom.XMLDesc(0)
-        xml = ElementTree.fromstring(dom_xml_str)
-        first_iface_mac = xml.find('.//interface[1]/mac').get('address')
 
         try:
             ifaces = self.dom.interfaceAddresses(libvirt.VIR_DOMAIN_INTERFACE_ADDRESSES_SRC_AGENT, 0)
